@@ -39,7 +39,7 @@ spec:
             - "-key-file"
             - "/secrets/tls/tls.key"
           ports:
-            - name: http
+            - name: https
               containerPort: 8443
               protocol: TCP
           livenessProbe:
