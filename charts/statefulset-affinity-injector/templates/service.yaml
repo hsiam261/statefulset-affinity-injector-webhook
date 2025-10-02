@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "statefulset-affinity-injector.fullname" . }}
+  labels:
+    {{- include "statefulset-affinity-injector.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "statefulset-affinity-injector.selectorLabels" . | nindent 4 }}
