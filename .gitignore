@@ -1,0 +1,4 @@
+*.tgz
+result/
+build/
+deploy/
