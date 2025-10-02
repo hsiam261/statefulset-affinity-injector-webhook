@@ -1,10 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"flag"
+	"time"
+	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	// corev1 "k8s.io/api/core/v1"
 	// admissionv1 "k8s.io/api/admission/v1"
@@ -88,32 +94,77 @@ type ServerOptions struct {
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.Method, r.URL)
 	respBytes, _ := json.Marshal(map[string]interface{}{"status": "ok"})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(respBytes)
 }
 
-func main() {
-	serverOptions := ServerOptions{}
-	flag.BoolVar(&serverOptions.EnableTLS, "enalbe-tls", false, "whether or not to enable TLS")
-	flag.StringVar(&serverOptions.CertFile, "cert-file", "./secrets/certs/tls.crt", "filepath to .crt file, ignored if tls is not enabled")
-	flag.StringVar(&serverOptions.KeyFile, "key-file", "./secrets/certs/tls.key", "filepath to .key file, ignored if tls is not enabled")
-	flag.IntVar(&serverOptions.GracefulShutdownSeconds, "graceful-shutdown-seconds", 0, "number of seconds to wait before graceful shutdown")
-
-	flag.Parse()
-
+func runServer(serverOptions *ServerOptions) {
 	mux := http.NewServeMux()
 
 	// mux.HandleFunc("POST /webhook")
 	mux.HandleFunc("/status", handleStatus)
 
+	port := 8080
+	protocol := "http"
+	if serverOptions.EnableTLS {
+		port = 8443
+		protocol = "https"
+	}
+
+	serverAddress := fmt.Sprintf("0.0.0.0:%d", port)
+
 	server := http.Server{
-		Addr: "0.0.0.0:8080",
+		Addr: serverAddress,
 		Handler: mux,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Error starting the server: %v", err)
+	// Channel to listen for errors from server
+	serverErrors := make(chan error, 1)
+	go func() {
+		log.Printf("Server running on %s://%s",protocol, serverAddress)
+		if serverOptions.EnableTLS {
+			serverErrors <- server.ListenAndServeTLS(serverOptions.CertFile, serverOptions.KeyFile)
+		} else {
+			serverErrors <- server.ListenAndServe()
+		}
+	}()
+
+
+
+	// Set up channel to listen for interrupt/terminate signals
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrors:
+		log.Println("Server error:", err)
+
+	case sig := <-stop:
+		log.Println("Received signal:", sig)
+
+		// Graceful shutdown
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(serverOptions.GracefulShutdownSeconds) * time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			log.Println("Graceful shutdown failed:", err)
+		} else {
+			log.Println("Server gracefully stopped")
+		}
 	}
+}
+
+func main() {
+	serverOptions := ServerOptions{}
+	flag.BoolVar(&serverOptions.EnableTLS, "enable-tls", false, "whether or not to enable TLS")
+	flag.StringVar(&serverOptions.CertFile, "cert-file", "./secrets/certs/tls.crt", "filepath to .crt file, ignored if tls is not enabled")
+	flag.StringVar(&serverOptions.KeyFile, "key-file", "./secrets/certs/tls.key", "filepath to .key file, ignored if tls is not enabled")
+	flag.IntVar(&serverOptions.GracefulShutdownSeconds, "graceful-shutdown-seconds", 5, "number of seconds to wait before graceful shutdown")
+
+	flag.Parse()
+
+	runServer(&serverOptions)
 }
