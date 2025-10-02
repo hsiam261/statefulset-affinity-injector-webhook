@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"flag"
 	"encoding/json"
 	"net/http"
 
@@ -79,6 +80,13 @@ import (
 // 	}
 // }
 
+type ServerOptions struct {
+	EnableTLS bool
+	CertFile string
+    KeyFile string
+	GracefulShutdownSeconds int
+}
+
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	respBytes, _ := json.Marshal(map[string]interface{}{"status": "ok"})
 	w.Header().Set("Content-Type", "application/json")
@@ -87,6 +95,14 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	serverOptions := ServerOptions{}
+	flag.BoolVar(&serverOptions.EnableTLS, "enalbe-tls", false, "whether or not to enable TLS")
+	flag.StringVar(&serverOptions.CertFile, "cert-file", "./secrets/certs/tls.crt", "filepath to .crt file, ignored if tls is not enabled")
+	flag.StringVar(&serverOptions.KeyFile, "key-file", "./secrets/certs/tls.key", "filepath to .key file, ignored if tls is not enabled")
+	flag.IntVar(&serverOptions.GracefulShutdownSeconds, "graceful-shutdown-seconds", 0, "number of seconds to wait before graceful shutdown")
+
+	flag.Parse()
+
 	mux := http.NewServeMux()
 
 	// mux.HandleFunc("POST /webhook")
