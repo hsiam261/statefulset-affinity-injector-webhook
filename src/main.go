@@ -12,7 +12,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	corev1 "k8s.io/api/core/v1"
+	// corev1 "k8s.io/api/core/v1"
 	admissionv1 "k8s.io/api/admission/v1"
 )
 
@@ -23,7 +23,7 @@ import (
 	decides what affinity should be injected to the pod
 */
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
-	var admissionReview admissionV1.AdmissionReview
+	var admissionReview admissionv1.AdmissionReview
 
 	if err := json.NewDecoder(r.Body).Decode(&admissionReview); err != nil {
 		log.Printf("Could not decode request: %v", err)
@@ -32,9 +32,10 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	admissionRequest := admissionReview.Request
-	log.Printf("Request ID: %v", admissionReview.UID)
+	log.Println(r.Method, r.URL)
+	log.Printf("Request ID: %v", admissionRequest.UID)
 
-	if admissionRequest.Resource != "pods" {
+	if admissionRequest.Resource.Resource != "pods" {
 		log.Printf("Admission request object should be a pod, but instead we got a %s", admissionRequest.Resource)
 		//NEED TO RETURN SOMETHING HERE
 	}
@@ -98,7 +99,7 @@ type ServerOptions struct {
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.Method, r.URL)
+	// log.Println(r.Method, r.URL)
 	respBytes, _ := json.Marshal(map[string]interface{}{"status": "ok"})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
