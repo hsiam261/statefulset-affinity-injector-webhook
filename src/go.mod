@@ -1,4 +1,4 @@
-module github.com/hsiam261/statefulset-affinity-webhook
+module github.com/hsiam261/statefulset-affinity-injector
 
 go 1.24.0
 

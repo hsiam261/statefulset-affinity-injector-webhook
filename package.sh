@@ -4,7 +4,7 @@ package_image() {
     rm -rf build/bin/
     nix build
     mkdir -p build/bin
-    cp result/bin/statefulset-affinity-webhook build/bin/statefulset-affinity-webhook
+    cp result/bin/statefulset-affinity-injector build/bin/statefulset-affinity-injector
     docker build --no-cache --progress=plain -t "statefulset-affinity-injector" .
 }
 

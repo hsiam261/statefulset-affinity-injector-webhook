@@ -32,7 +32,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
-            - "/usr/local/bin/statefulset-affinity-webhook"
+            - "/usr/local/bin/statefulset-affinity-injector"
             - "-enable-tls"
             - "-cert-file"
             - "/secrets/tls/tls.crt"
