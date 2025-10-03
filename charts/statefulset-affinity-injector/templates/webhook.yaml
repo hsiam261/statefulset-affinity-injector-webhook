@@ -1,0 +1,41 @@
+kind: MutatingWebhookConfiguration
+apiVersion: admissionregistration.k8s.io/v1
+metadata:
+  name: {{ include "statefulset-affinity-injector.fullname" . }}
+  labels:
+    {{- include "statefulset-affinity-injector.labels" . | nindent 4 }}
+webhooks:
+  - name: statefulset-affinity-injector-webhook.hsiam261.github.io
+    admissionReviewVersions: ["v1"]
+    {{- with .Values.webhook.objectSelector }}
+    objectSelector:
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.webhook.namespaceSelector }}
+    namespaceSelector:
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    matchConditions:
+      - name: "owned-by-statefulset"
+        expression: "object.metadata.ownerReferences.exists(o, o.kind == 'StatefulSet')"
+      - name: "annotation-enable-webhook"
+        expression: "object.metadata.annotations['statefulset-affinity-injector-webhook.hsiam261.github.io/enabled'] == 'true'"
+      - name: "webhook-config-annotation-exists"
+        expression: "'statefulset-affinity-injector-webhook.hsiam261.github.io/config' in object.metadata.annotations"
+      - name: "is-pod"
+        expression: "object.kind == 'Pod'"
+    clientConfig:
+      service:
+        name: {{ include "statefulset-affinity-injector.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: /webhook
+        port: 443
+      caBundle: {{ .Values.tls.cert | b64enc | quote }}
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources:
+          - "pods"
+    sideEffects: None
+    timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}

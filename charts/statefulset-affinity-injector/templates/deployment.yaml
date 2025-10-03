@@ -47,11 +47,13 @@ spec:
               path: /status
               port: 8443
               scheme: HTTPS
+            periodSeconds: 60
           readinessProbe:
             httpGet:
               path: /status
               port: 8443
               scheme: HTTPS
+            periodSeconds: 60
           volumeMounts:
             - name: tls-certs
               mountPath: "/secrets/tls"
