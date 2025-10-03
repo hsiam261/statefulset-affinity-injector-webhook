@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"log"
 	"flag"
 	"time"
@@ -12,7 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	// corev1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	admissionv1 "k8s.io/api/admission/v1"
 )
 
@@ -37,58 +38,38 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	if admissionRequest.Resource.Resource != "pods" {
 		log.Printf("Admission request object should be a pod, but instead we got a %s", admissionRequest.Resource)
-		//NEED TO RETURN SOMETHING HERE
+		http.Error(w, fmt.Sprintf("Admission request object should be a pod, but instead we got a %s", admissionRequest.Resource), http.StatusBadRequest)
 	}
 
-	http.Error(w, fmt.Sprintf("Admission request object should be a pod, but instead we got a %s", admissionRequest.Resource), http.StatusBadRequest)
+	var pod corev1.Pod
+	if err := json.Unmarshal(admissionRequest.Object.Raw, &pod); err != nil {
+		log.Printf("Failed to parse pod object from request: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	pod.Annotations
+	if val, ok := pod.Annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/enabled"]; !ok {
+		err := fmt.Sprintf("Pod %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/enabled\" in its annotations", pod.Name, pod.Namespace)
+		log.Println(err.Error())
+		http.Error(w, fmt.Sprintf("RequestID: %v - %s", admissionRequest.UID, err.Error()), http.StatusBadRequest)
+		return
+	} else {
+		isEnabled, err := strconv.ParseBool(val)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("RequestID: %v - %s", admissionRequest.UID, err.Error()), http.StatusBadRequest)
+			return
+		}
 
+		if !isEnabled {
+			err := fmt.Sprintf("Pod %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/enabled\" set to true", pod.Name, pod.Namespace)
+			log.Println(err.Error())
+			http.Error(w, fmt.Sprintf("RequestID: %v - %s", admissionRequest.UID, err.Error()), http.StatusBadRequest)
+			return
+		}
+	}
 
-	// var pod corev1.Pod
-	// if err := json.Unmarshal(admissionRequest.Object.Raw, &pod); err != nil {
-	// 	log.Printf("Failed to parse pod object from request: %v", err)
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// statefulsetReferenceCount := 0
-	// for _ , owner := range pod.OwnerReferences {
-	// 	if owner.Kind == "StatefulSet" {
-	// 		statefulsetReferenceCount = statefulsetReferenceCount + 1
-	// 	}
-	// }
-
-	// if statefulsetReferenceCount == 0 {
-	// 	log.Printf("Pod %s in namespace %s is not owned by a statefulset", pod.Name, pod.Namespace)
-	// 	err := fmt.Errorf("Pod %s in namespace %s is owned by multiple statefulsets", pod.Name, pod.Namespace)
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
-
-	// if statefulsetReferenceCount > 1 {
-	// 	log.Printf("Pod %s in namespace %s is owned by multiple statefulsets", pod.Name, pod.Namespace)
-	// 	err := fmt.Errorf("Pod %s in namespace %s is owned by multiple statefulsets", pod.Name, pod.Namespace)
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
-
-	// annotations := pod.Annotations
-	// affinity := pod.Spec.Affinity
-
-
-	// for annotation, val := range annotations {
-	// 	if annotation == "statefulset-node-affinity-injector.hsiam261.github.io/config" {
-	// 		var affinityMap map[string]string
-	// 		if err := json.Unmarshal([]byte(val), &affinityMap); err != nil {
-	// 			log.Printf("Malformed annotation value in pod %s in namespace %s: %s", pod.Name, pod.Namespace, val)
-	// 			http.Error(w, err.Error(), http.StatusBadRequest)
-	// 			return
-	// 		}
-
-
-
-	// 	}
-	// }
+	affinity := pod.Spec.Affinity[]
 }
 
 type ServerOptions struct {
