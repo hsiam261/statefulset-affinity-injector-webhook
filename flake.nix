@@ -18,6 +18,7 @@
         stable.gopls
         stable.go-tools
         stable.kubernetes-helm
+        stable.openssl
       ];
     };
 
@@ -38,7 +39,7 @@
         nativeBuildInputs = [ stable.upx ];
         postInstall = ''
           # compress the binary after build
-          upx --best $out/bin/k8s-podlister-go
+          # upx --best $out/bin/k8s-podlister-go
         '';
       };
     };
