@@ -112,14 +112,12 @@ func getPodPatch(pod *corev1.Pod, mutationConfig map[string][]string) ([]map[str
 		patch := map[string]interface{}{
 			"op": "add",
 			"path": "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms",
-			"value": map[string]interface{}{
-				"matchExpressions": make([]corev1.NodeSelectorRequirement, 0, 0),
-			},
+			"value": make([]corev1.NodeSelectorTerm, 0, 0),
+
 		}
 
 		patches = append(patches, patch)
 	}
-
 
 	expressions := make([]corev1.NodeSelectorRequirement, 0, len(mutationConfig))
 	for key, vals := range mutationConfig {
@@ -130,12 +128,14 @@ func getPodPatch(pod *corev1.Pod, mutationConfig map[string][]string) ([]map[str
 		})
 	}
 
+	nodeSelectorTerm := corev1.NodeSelectorTerm{
+		MatchExpressions: expressions,
+	}
+
 	patch := map[string]interface{}{
 		"op": "add",
-		"path": "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/matchExpressions/-",
-		"value": map[string]interface{}{
-			"matchExpressions": expressions,
-		},
+		"path": "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/-",
+		"value": nodeSelectorTerm,
 	}
 
 	patches = append(patches, patch)
