@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"log"
 	"flag"
 	"time"
@@ -58,6 +59,90 @@ func getMutationConfig(pod *corev1.Pod) (map[string][]string, error) {
 	return mutationConfig, nil
 }
 
+func getStatefulsetPodIndex(pod *corev1.Pod) (int, error) {
+	parts := strings.Split(pod.Name, "-")
+	lastPart := parts[len(parts) - 1]
+
+	num, err := strconv.Atoi(lastPart)
+	if err != nil {
+		return 0, fmt.Errorf("Pod %s in namespace %s does not have an index in it's suffix", pod.Name, pod.Namespace)
+	}
+
+	return num, nil
+}
+
+func getPodPatch(pod *corev1.Pod, mutationConfig map[string][]string) ([]map[string]interface{}, error) {
+	podIndex, err := getStatefulsetPodIndex(pod)
+	if err != nil {
+		return nil, err
+	}
+
+	patches := make([]map[string]interface{}, 0, 5)
+	if pod.Spec.Affinity == nil {
+		pod.Spec.Affinity = &corev1.Affinity{}
+		patch := map[string]interface{}{
+			"op": "add",
+			"path": "/spec/affinity",
+			"value": map[string]interface{}{},
+		}
+		patches = append(patches, patch)
+	}
+
+	if pod.Spec.Affinity.NodeAffinity == nil {
+		pod.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
+		patch := map[string]interface{}{
+			"op": "add",
+			"path": "/spec/affinity/nodeAffinity",
+			"value": map[string]interface{}{},
+		}
+		patches = append(patches, patch)
+	}
+
+	if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
+		patch := map[string]interface{}{
+			"op": "add",
+			"path": "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution",
+			"value": map[string]interface{}{},
+		}
+		patches = append(patches, patch)
+	}
+
+	if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms == nil {
+		patch := map[string]interface{}{
+			"op": "add",
+			"path": "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms",
+			"value": map[string]interface{}{
+				"matchExpressions": make([]corev1.NodeSelectorRequirement, 0, 0),
+			},
+		}
+
+		patches = append(patches, patch)
+	}
+
+
+	expressions := make([]corev1.NodeSelectorRequirement, 0, len(mutationConfig))
+	for key, vals := range mutationConfig {
+		expressions = append(expressions, corev1.NodeSelectorRequirement{
+			Key: key,
+			Operator: "In",
+			Values: []string{ vals[podIndex % len(vals)] },
+		})
+	}
+
+	patch := map[string]interface{}{
+		"op": "add",
+		"path": "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/matchExpressions/-",
+		"value": map[string]interface{}{
+			"matchExpressions": expressions,
+		},
+	}
+
+	patches = append(patches, patch)
+
+	return patches, nil
+}
+
 /*
 	Checks if pod is owned by a statefulset that has
 	registered for this webhook. If so, then it fetches
@@ -91,7 +176,13 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println(mutationConfig)
+	podPatch, err := getPodPatch(pod, mutationConfig)
+	if err != nil {
+		log.Printf("Request ID: %v - %v", admissionRequest.UID, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 
+	log.Println(podPatch)
 	http.Error(w, "Not Implemented Yet", http.StatusNotImplemented)
 }
 
