@@ -199,15 +199,18 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 		PatchType: &patchType,
 	}
 
-	admissionResponseBytes, err := json.Marshal(admissionResponse)
+	admissionReview.Request = nil
+	admissionReview.Response = admissionResponse
+
+	admissionReviewResponseBytes, err := json.Marshal(&admissionReview)
     if err != nil {
-		newErr := fmt.Errorf("Could not marshal admission response into bytes -- possible formatting error: %v", err.Error())
+		newErr := fmt.Errorf("Could not marshal admission review response into bytes -- possible formatting error: %v", err.Error())
 		log.Printf("Request ID: %v - %v", admissionRequest.UID, newErr.Error())
 		http.Error(w, newErr.Error(), http.StatusInternalServerError)
 	}
 
     w.Header().Set("Content-Type", "application/json")
-    w.Write(admissionResponseBytes)
+    w.Write(admissionReviewResponseBytes)
 }
 
 type ServerOptions struct {
