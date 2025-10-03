@@ -182,8 +182,32 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	log.Println(podPatch)
-	http.Error(w, "Not Implemented Yet", http.StatusNotImplemented)
+	podPatchBytes, err := json.Marshal(podPatch)
+    if err != nil {
+		newErr := fmt.Errorf("Could not marshal pod patch into bytes -- possible formatting error: %v", err.Error())
+		log.Printf("Request ID: %v - %v", admissionRequest.UID, newErr.Error())
+		http.Error(w, newErr.Error(), http.StatusInternalServerError)
+	}
+
+	// this needs to be copied cause admissionv1.PatchTypeJSONPatch is const
+	// taking the direct reference of that doesn't match type
+	patchType := admissionv1.PatchTypeJSONPatch
+	admissionResponse := &admissionv1.AdmissionResponse{
+		UID: admissionRequest.UID,
+		Allowed: true,
+		Patch: podPatchBytes,
+		PatchType: &patchType,
+	}
+
+	admissionResponseBytes, err := json.Marshal(admissionResponse)
+    if err != nil {
+		newErr := fmt.Errorf("Could not marshal admission response into bytes -- possible formatting error: %v", err.Error())
+		log.Printf("Request ID: %v - %v", admissionRequest.UID, newErr.Error())
+		http.Error(w, newErr.Error(), http.StatusInternalServerError)
+	}
+
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(admissionResponseBytes)
 }
 
 type ServerOptions struct {
