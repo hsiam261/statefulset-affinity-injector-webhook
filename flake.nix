@@ -24,7 +24,7 @@
 
     packages."${system}" = {
       default = pkgs.buildGoModule rec {
-        pname="k8s-podlister";
+        pname="statefulset-affinity-injector";
         version="0.1.0";
         src=./src;
         vendorHash=null;
