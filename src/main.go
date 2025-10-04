@@ -92,11 +92,69 @@ func mutatePod(w http.ResponseWriter, r *http.Request) {
     w.Write(admissionReviewResponseBytes)
 }
 
+func mutateStatefulSet(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.Method, r.URL)
+
+	admissionReview, err := getAdmissionReviewFromRequest(r.Body)
+	if err != nil {
+		log.Printf(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	admissionRequest := admissionReview.Request
+	log.Printf("Processing request : %v", admissionRequest.UID)
+
+	statefulSet, err := getStatefulSetFromAdmissionRequest(admissionRequest)
+	if err != nil {
+		log.Printf("Request ID: %v - %v", admissionRequest.UID, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	_, err = getMutationConfig(statefulSet)
+	if err != nil {
+		log.Printf("Request ID: %v - %v", admissionRequest.UID, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	statefulSetPatch := getStatefulSetPatch(statefulSet)
+
+	statefulSetPatchBytes, err := json.Marshal(statefulSetPatch)
+    if err != nil {
+		newErr := fmt.Errorf("Could not marshal pod patch into bytes -- possible formatting error: %v", err.Error())
+		log.Printf("Request ID: %v - %v", admissionRequest.UID, newErr.Error())
+		http.Error(w, newErr.Error(), http.StatusInternalServerError)
+	}
+
+	// this needs to be copied cause admissionv1.PatchTypeJSONPatch is const
+	// taking the direct reference of that doesn't match type
+	patchType := admissionv1.PatchTypeJSONPatch
+	admissionResponse := &admissionv1.AdmissionResponse{
+		UID: admissionRequest.UID,
+		Allowed: true,
+		Patch: statefulSetPatchBytes,
+		PatchType: &patchType,
+	}
+
+	admissionReview.Request = nil
+	admissionReview.Response = admissionResponse
+
+	admissionReviewResponseBytes, err := json.Marshal(&admissionReview)
+    if err != nil {
+		newErr := fmt.Errorf("Could not marshal admission review response into bytes -- possible formatting error: %v", err.Error())
+		log.Printf("Request ID: %v - %v", admissionRequest.UID, newErr.Error())
+		http.Error(w, newErr.Error(), http.StatusInternalServerError)
+	}
+
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(admissionReviewResponseBytes)
+}
+
 func runServer(serverOptions *ServerOptions) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/status", handleStatus)
 	mux.HandleFunc("POST /mutate-pods", mutatePod)
+	mux.HandleFunc("POST /mutate-statefulsets", mutateStatefulSet)
 
 	port := 8080
 	protocol := "http"
