@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 
 	corev1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	admissionv1 "k8s.io/api/admission/v1"
 )
 
@@ -23,7 +24,7 @@ func getAdmissionReviewFromRequest(reader io.Reader) (*admissionv1.AdmissionRevi
 
 func getPodFromAdmissionRequest(admissionRequest *admissionv1.AdmissionRequest) (*corev1.Pod, error) {
 	if admissionRequest.Resource.Resource != "pods" {
-		err := fmt.Errorf("Admission request object should be a pod, but instead we got a %s", admissionRequest.Resource)
+		err := fmt.Errorf("Admission request object should be a pod, but instead we got a %s", admissionRequest.Resource.Resource)
 		return nil, err
 	}
 
@@ -34,6 +35,21 @@ func getPodFromAdmissionRequest(admissionRequest *admissionv1.AdmissionRequest) 
 	}
 
 	return &pod, nil
+}
+
+func getStatefulSetFromAdmissionRequest(admissionRequest *admissionv1.AdmissionRequest) (*appsv1.StatefulSet, error) {
+	if admissionRequest.Resource.Resource != "statefulsets" {
+		err := fmt.Errorf("Admission request object should be a statefulset, but instead we got a %s", admissionRequest.Resource.Resource)
+		return nil, err
+	}
+
+	var statefulset appsv1.StatefulSet
+	if err := json.Unmarshal(admissionRequest.Object.Raw, &statefulset); err != nil {
+		newErr := fmt.Errorf("Failed to parse statefulset object from request: %v", err)
+		return nil, newErr
+	}
+
+	return &statefulset, nil
 }
 
 func getMutationConfig(object K8sObject) (map[string][]string, error) {
