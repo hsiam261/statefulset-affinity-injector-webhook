@@ -166,3 +166,38 @@ func getPodPatch(pod *corev1.Pod, mutationConfig map[string][]string) ([]map[str
 
 	return patches, nil
 }
+
+func getStatefulSetPatch(statefulSet *appsv1.StatefulSet) []map[string]interface{} {
+	patches := make([]map[string]interface{}, 0, 5)
+
+	//spec.template.metadata already exists since
+	//spec.template.metadata.label is required
+	if statefulSet.Spec.Template.Annotations == nil {
+		patch := map[string]interface{}{
+			"op": "add",
+			"path": "/spec/template/metadata/annotations",
+			"value": map[string]interface{}{},
+		}
+		patches = append(patches, patch)
+	}
+
+	//How to espace in jsonpatch
+	//https://jsonpatch.com/#json-pointer
+	patch := map[string]interface{}{
+		"op": "add",
+		"path": "/spec/template/metadata/annotations/statefulset-affinity-injector-webhook.hsiam261.github.io~1enabled",
+		"value": "true",
+	}
+
+	patches = append(patches, patch)
+
+	patch = map[string]interface{}{
+		"op": "add",
+		"path": "/spec/template/metadata/annotations/statefulset-affinity-injector-webhook.hsiam261.github.io~1config",
+		"value": statefulSet.Annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/config"],
+	}
+
+	patches = append(patches, patch)
+
+	return patches
+}
