@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "statefulset-affinity-injector.labels" . | nindent 4 }}
 webhooks:
-  - name: statefulset-affinity-injector-webhook.hsiam261.github.io
+  - name: mutate-pod.statefulset-affinity-injector-webhook.hsiam261.github.io
     admissionReviewVersions: ["v1"]
     {{- with .Values.webhook.objectSelector }}
     objectSelector:
@@ -37,5 +37,37 @@ webhooks:
         apiVersions: ["v1"]
         resources:
           - "pods"
+    sideEffects: None
+    timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}
+  - name: mutate-statefulset.statefulset-affinity-injector-webhook.hsiam261.github.io
+    admissionReviewVersions: ["v1"]
+    {{- with .Values.webhook.objectSelector }}
+    objectSelector:
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.webhook.namespaceSelector }}
+    namespaceSelector:
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    matchConditions:
+      - name: "annotation-enable-webhook"
+        expression: "object.metadata.annotations['statefulset-affinity-injector-webhook.hsiam261.github.io/enabled'] == 'true'"
+      - name: "webhook-config-annotation-exists"
+        expression: "'statefulset-affinity-injector-webhook.hsiam261.github.io/config' in object.metadata.annotations"
+      - name: "is-statefulset"
+        expression: "object.kind == 'StatefulSet'"
+    clientConfig:
+      service:
+        name: {{ include "statefulset-affinity-injector.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-statefulsets
+        port: 443
+      caBundle: {{ .Values.tls.cert | b64enc | quote }}
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources:
+          - "statefulsets"
     sideEffects: None
     timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}
