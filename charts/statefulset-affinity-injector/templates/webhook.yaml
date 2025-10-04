@@ -28,7 +28,7 @@ webhooks:
       service:
         name: {{ include "statefulset-affinity-injector.fullname" . }}
         namespace: {{ .Release.Namespace }}
-        path: /webhook
+        path: /mutate-pods
         port: 443
       caBundle: {{ .Values.tls.cert | b64enc | quote }}
     rules:
