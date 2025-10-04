@@ -6,6 +6,8 @@ replicaCount: 1
 
 image:
   pullPolicy: IfNotPresent
+  repository: hsiam261/statefulset-affinity-injector-webhook
+  tag: latest
   # Overrides the image tag whose default is the chart appVersion.
 
 podAnnotations: {}
