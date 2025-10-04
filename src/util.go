@@ -36,26 +36,31 @@ func getPodFromAdmissionRequest(admissionRequest *admissionv1.AdmissionRequest) 
 	return &pod, nil
 }
 
-func getMutationConfig(pod *corev1.Pod) (map[string][]string, error) {
-	if _, ok := pod.Annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/enabled"]; !ok {
-		err := fmt.Errorf("Pod %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/enabled\" annotation set", pod.Name, pod.Namespace)
+func getMutationConfig(object K8sObject) (map[string][]string, error) {
+	kind := object.GetObjectKind().GroupVersionKind().Kind
+	name := object.GetName()
+	namespace := object.GetNamespace()
+	annotations := object.GetAnnotations()
+
+	if _, ok := annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/enabled"]; !ok {
+		err := fmt.Errorf("%s %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/enabled\" annotation set",kind, name, namespace)
 		return nil, err
 	}
 
-	if mutationEnabled, _ := strconv.ParseBool(pod.Annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/enabled"]); !mutationEnabled {
-		err := fmt.Errorf("Pod %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/enabled\" annotation set to true", pod.Name, pod.Namespace)
+	if mutationEnabled, _ := strconv.ParseBool(annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/enabled"]); !mutationEnabled {
+		err := fmt.Errorf("%s %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/enabled\" annotation set to true", kind, name, namespace)
 		return nil, err
 	}
 
-	mutationConfigAnnotation, ok := pod.Annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/config"]
+	mutationConfigAnnotation, ok := annotations["statefulset-affinity-injector-webhook.hsiam261.github.io/config"]
 	if !ok {
-		err := fmt.Errorf("Pod %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/config\" annotation", pod.Name, pod.Namespace)
+		err := fmt.Errorf("%s %s in namespace %s does not have \"statefulset-affinity-injector-webhook.hsiam261.github.io/config\" annotation", kind, name, namespace)
 		return nil, err
 	}
 
 	var mutationConfig map[string][]string
 	if err := json.Unmarshal([]byte(mutationConfigAnnotation), &mutationConfig); err != nil {
-		newErr := fmt.Errorf("Error parsing \"statefulset-affinity-injector-webhook.hsiam261.github.io/config\" value for pod %s in namespace %s: %v",pod.Name, pod.Namespace, err)
+		newErr := fmt.Errorf("Error parsing \"statefulset-affinity-injector-webhook.hsiam261.github.io/config\" value for kind %s in namespace %s: %v", kind, name, namespace, err)
 		return nil, newErr
 	}
 
