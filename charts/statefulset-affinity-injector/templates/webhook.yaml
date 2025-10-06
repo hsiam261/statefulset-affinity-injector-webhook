@@ -64,7 +64,7 @@ webhooks:
         port: 443
       caBundle: {{ .Values.tls.cert | b64enc | quote }}
     rules:
-      - operations: ["CREATE"]
+      - operations: ["CREATE", "UPDATE"]
         apiGroups: ["apps"]
         apiVersions: ["v1"]
         resources:
