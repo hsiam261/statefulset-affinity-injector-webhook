@@ -78,6 +78,9 @@ These parameters are used configure the webhook deployment
 
 ---
 
+### Name Overrides
+The `nameOverride` and `fullnameOverride` parameters can be used to override the name and fullname of our resources. This is useful if you are considering having multiple releases of this helm chart in the same cluster.
+
 ### Image Configuration
 These parameters related to the webhook docker image.
 
