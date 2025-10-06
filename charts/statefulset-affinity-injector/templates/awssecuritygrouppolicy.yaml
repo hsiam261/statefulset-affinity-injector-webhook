@@ -5,6 +5,10 @@ metadata:
   name: {{ include "statefulset-affinity-injector.fullname" . }}
   labels:
     {{- include "statefulset-affinity-injector.labels" . | nindent 4 }}
+  annotations:
+    # required to make sure that SecurityGroupPolicy gets created before the pod
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-1"
 spec:
   podSelector:
     matchLabels:
