@@ -3,7 +3,7 @@ Statefulset-affinity-injector is a kubernetes admission webhook that allows sett
 
 Normally, you can not set individual node affinities to stateful set pods. Instead every pod gets the node affinity mentioned in `spec.template.affinity.nodeAffinity` in the statefulset manifest. However, it is essential to set different node affinities for each pod in a stateful set to ensure high availability while not facing any scheduling issues to due PVs being attached in different zones. For more details, see [The Nightmare of Persistent Volumes with Multiple Availability Zones Kubernetes Cluster](https://medium.com/@calvineotieno010/the-nightmare-of-persistent-volumes-with-multiple-availability-zones-kubernetes-cluster-74cf2897a93e).
 
-Statefulset-affinity-injector is a mutating webhook for kubernetes that solves this exact issue. The webhook listens to create API calls for statefulsets and statefulset pods with certain annotations and patches the node affinity for individual pods with different node affinities -- providing more configurability and allowing to run highly available stateful workloads without facing any issues with pod scheduling.
+Statefulset-affinity-injector is a mutating webhook for kubernetes that solves this exact issue. The webhook listens to create and update operations for statefulsets and only create operations for statefulset pods with certain annotations and patches the node affinity for individual pods with different node affinities -- providing more configurability and allowing to run highly available stateful workloads without facing any issues with pod scheduling.
 
 ## How It Works
 The `statefulset-affinity-injector` webhook works using two annotations:
