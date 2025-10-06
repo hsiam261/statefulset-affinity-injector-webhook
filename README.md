@@ -164,3 +164,12 @@ helm install RELEASE_NAME oci://registry-1.docker.io/hsiam261/statefulset-affini
 ```
 
 **PLEASE NOTE THAT THE VALIDITY OF THE GENERATED CERTIFICATE IS ONLY ONE YEAR AND WOULD REQUIRE MANUAL ROTATION**
+
+## About Security Groups on EKS
+For the webhook to function, our webhook pods need to pass the liveness and readiness probes
+and be able to be triggered by the API server. This is why we recommend the following inbound rules to the pod security groups:
+- allow cluster security group on port 8443 for api server communication
+- allow node security group on port 8443 for liveness and readiness probes
+- allow all traffic from self
+
+For the outbound rules, we can allow any traffic to anywhere.
