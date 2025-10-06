@@ -23,6 +23,7 @@ autoscaling:
 tolerations: []
 affinity: {}
 
+awsSecurityGroups: []
 
 webhook:
   # only resources in namespaces that match the namespace selector may trigger the webhook
