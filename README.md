@@ -88,6 +88,12 @@ These parameters related to the webhook docker image.
 | `image.tag` | Image tag to use. | `"latest"` | No |
 | `image.pullPolicy` | Image pull policy (`Always`, `IfNotPresent`, `Never`). | `"IfNotPresent"` | No |
 
+### AWS security group policy configuration
+This parameter is used to attach pod security groups to the webhook pods
+
+| Parameter | Description | Default | Required |
+|------------|-------------|----------|-----------|
+| `awsSecurityGroups` | List of security group ids. | `[]` | No |
 ---
 
 ### Example Values File
